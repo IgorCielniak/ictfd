@@ -3,7 +3,7 @@ import sys
 import requests
 from urllib.parse import urlparse
 from datetime import datetime
-#hello
+
 DOWNLOADS_FOLDER = os.path.join(str(os.path.expanduser("~")), "downloads")
 DEFAULT_CHUNK_SIZE = 8192
 VERSION = "1.8"
