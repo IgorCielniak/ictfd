@@ -6,7 +6,10 @@ from datetime import datetime
 
 DOWNLOADS_FOLDER = os.path.join(str(os.path.expanduser("~")), "downloads")
 DEFAULT_CHUNK_SIZE = 8192
-VERSION = "1.8"
+VERSION = "1.9"
+GITHUB_API_URL = "https://api.github.com/repos/IgorCielniak/ictfd/releases/latest"
+LATEST_VERSION = requests.get(GITHUB_API_URL).json()["tag_name"]
+GITHUB_RELEASE_URL = f"https://raw.githubusercontent.com/IgorCielniak/ictfd/{LATEST_VERSION}/ictfd.py"
 
 def create_downloads_folder():
     if not os.path.exists(DOWNLOADS_FOLDER):
@@ -58,6 +61,7 @@ def download_http_file(url, chunk_size=DEFAULT_CHUNK_SIZE):
         return
 
     print("\nFile downloaded successfully.")
+    
     print(f"Total Time: {format_time(elapsed_time)}")
 
 def prompt_user_overwrite(file_path):
@@ -71,10 +75,23 @@ def display_help():
     print("  URL                  The URL of the file to download.")
     print("  -c, --chunk-size    Custom chunk size for downloading.")
     print("  -h, --help          Display this help message.")
-    print("  -v, --version       Display the version.")
+    print("  -v, --version       Display the version and check for updates.")
 
 def display_version():
     print(f"ICTFD Version {VERSION}")
+
+    if "--version" or "-v" in sys.argv:
+        try:
+            latest_version = requests.get(GITHUB_API_URL).json()["tag_name"]
+            if latest_version != VERSION:
+                print(f"\nA newer version ({latest_version}) is available. You can download it from: {GITHUB_RELEASE_URL}")
+                user_input = input("Do you want to download the newer version? (y/n): ").lower()
+                if user_input == 'y':
+                    # Download the newer version
+                    print("Downloading the newer version...")
+                    download_file(GITHUB_RELEASE_URL)
+        except Exception as e:
+            print("Failed to check for updates:", e)
 
 def format_bytes(size):
     for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -101,7 +118,7 @@ def download_file(url, custom_chunk_size=None):
         else:
             print(f"Unsupported scheme: {scheme}. Cannot download the file.")
     except Exception as e:
-        print(f"Error downloading file: {e}")
+            print(f"Error downloading file: {e}")
 
 def interactive_mode():
     print("\nICTFD - Interactive Mode\n")
