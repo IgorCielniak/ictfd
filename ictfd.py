@@ -6,6 +6,7 @@ from datetime import datetime
 
 DOWNLOADS_FOLDER = os.path.join(str(os.path.expanduser("~")), "Downloads")
 DEFAULT_CHUNK_SIZE = 8192
+DEFAULT_TIMEOUT = 30  # Set the default timeout to 30 seconds
 VERSION = "1.9"
 GITHUB_API_URL = "https://api.github.com/repos/IgorCielniak/ictfd/releases/latest"
 LATEST_VERSION = requests.get(GITHUB_API_URL).json()["tag_name"]
@@ -15,31 +16,32 @@ def create_downloads_folder(folder_path):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
-def download_http_file(url, download_dir, chunk_size=DEFAULT_CHUNK_SIZE):
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-
-    total_size = int(response.headers.get('content-length', 0))
-    file_name = os.path.join(download_dir, url.split("/")[-1])
-
-    print(f"{url}")
-    print(f"Resolving {parsed_url.netloc} ({parsed_url.netloc})... connected.")
-    print(f"HTTP request sent, awaiting response... {response.status_code} {response.reason}")
-    print(f"Length: {total_size} ({format_bytes(total_size)}) [{response.headers['content-type']}]")
-
-    if os.path.exists(file_name):
-        if not prompt_user_overwrite(file_name):
-            print("Download canceled.")
-            return
-
-    print(f"Saving to: '{file_name}'")
-    print(f"Using chunk size: {chunk_size} bytes")
-    print("Press Ctrl+C to cancel the download.")
-
-    start_time = datetime.now()
-    downloaded_size = 0
-
+def download_http_file(url, download_dir, chunk_size=DEFAULT_CHUNK_SIZE, timeout=DEFAULT_TIMEOUT):
     try:
+        response = requests.get(url, stream=True, timeout=timeout)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get('content-length', 0))
+        file_name = os.path.join(download_dir, url.split("/")[-1])
+
+        print(f"{url}")
+        print(f"Resolving {parsed_url.netloc} ({parsed_url.netloc})... connected.")
+        print(f"HTTP request sent, awaiting response... {response.status_code} {response.reason}")
+        print(f"Length: {total_size} ({format_bytes(total_size)}) [{response.headers['content-type']}]")
+
+        if os.path.exists(file_name):
+            if not prompt_user_overwrite(file_name):
+                print("Download canceled.")
+                return
+
+        print(f"Saving to: '{file_name}'")
+        print(f"Using chunk size: {chunk_size} bytes")
+        print(f"Timeout: {timeout} seconds")
+        print("Press Ctrl+C to cancel the download.")
+
+        start_time = datetime.now()
+        downloaded_size = 0
+
         with open(file_name, "wb") as file:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 file.write(chunk)
@@ -54,15 +56,20 @@ def download_http_file(url, download_dir, chunk_size=DEFAULT_CHUNK_SIZE):
                       f"Progress: {percentage:.2f}% | "
                       f"Estimated Time: {estimated_time:.0f} seconds", end="", flush=True)
 
+        print("\nFile downloaded successfully.")
+        print(f"Total Time: {format_time(elapsed_time)}")
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading file: {e}")
+        if isinstance(e, requests.exceptions.Timeout):
+            print("The download timed out. Please check your internet connection or try again later.")
+        elif isinstance(e, requests.exceptions.ConnectionError):
+            print("Connection error occurred. Please check your network.")
+        return
     except KeyboardInterrupt:
         print("\nDownload canceled. Deleting incomplete file...")
         os.remove(file_name)
         print("Incomplete file deleted.")
-        return
-
-    print("\nFile downloaded successfully.")
-    
-    print(f"Total Time: {format_time(elapsed_time)}")
 
 def prompt_user_overwrite(file_path):
     user_input = input(f"File '{file_path}' already exists. Do you want to overwrite it? (y/n): ").lower()
@@ -70,11 +77,12 @@ def prompt_user_overwrite(file_path):
 
 def display_help():
     print("Usage:")
-    print("  python ictfd.py [URL] [-c CHUNK_SIZE] [-d DOWNLOAD_DIR] [-h] [-v]")
+    print("  python ictfd.py [URL] [-c CHUNK_SIZE] [-d DOWNLOAD_DIR] [-t TIMEOUT] [-h] [-v]")
     print("\nOptions:")
     print("  URL                  The URL of the file to download.")
     print("  -c, --chunk-size     Custom chunk size for downloading.")
     print("  -d, --download-dir   Custom directory for downloaded files.")
+    print("  -t, --timeout        Custom download timeout in seconds (default is 30).")
     print("  -h, --help           Display this help message.")
     print("  -v, --version        Display the version and check for updates.")
 
@@ -105,7 +113,7 @@ def format_time(seconds):
     hours, minutes = divmod(minutes, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
-def download_file(url, custom_chunk_size=None, custom_download_dir=None):
+def download_file(url, custom_chunk_size=None, custom_download_dir=None, timeout=DEFAULT_TIMEOUT):
     try:
         global parsed_url
         parsed_url = urlparse(url)
@@ -120,7 +128,7 @@ def download_file(url, custom_chunk_size=None, custom_download_dir=None):
 
         if scheme in ["http", "https"]:
             chunk_size = custom_chunk_size if custom_chunk_size is not None else DEFAULT_CHUNK_SIZE
-            download_http_file(url, download_dir, chunk_size)
+            download_http_file(url, download_dir, chunk_size, timeout)
         else:
             print(f"Unsupported scheme: {scheme}. Cannot download the file.")
     except Exception as e:
@@ -134,7 +142,8 @@ def interactive_mode():
     print("2. For each file, enter the URL of the file.")
     print("3. Optionally, specify a custom chunk size for downloading.")
     print("4. Optionally, specify a custom download directory.")
-    print("5. Press Enter after each URL to proceed to the next file.\n")
+    print("5. Optionally, specify a custom download timeout.")
+    print("6. Press Enter after each URL to proceed to the next file.\n")
 
     try:
         num_files = int(input("Enter the number of files to download: "))
@@ -155,7 +164,16 @@ def interactive_mode():
                 print("Invalid chunk size. Using default.")
 
         custom_download_dir = input("Enter custom download directory (press Enter to use default): ")
-        download_file(url, custom_chunk_size, custom_download_dir)
+        
+        custom_timeout = None
+        timeout_input = input("Enter custom timeout (in seconds, press Enter for default 30): ")
+        if timeout_input:
+            try:
+                custom_timeout = int(timeout_input)
+            except ValueError:
+                print("Invalid timeout. Using default.")
+
+        download_file(url, custom_chunk_size, custom_download_dir, custom_timeout)
 
     input("\nPress Enter to exit.")
 
@@ -165,6 +183,7 @@ if __name__ == "__main__":
     else:
         custom_download_dir = None
         custom_chunk_size = None
+        custom_timeout = DEFAULT_TIMEOUT
         url_index = 1
 
         for index, arg in enumerate(sys.argv[1:], start=1):
@@ -178,11 +197,16 @@ if __name__ == "__main__":
                     custom_chunk_size = int(sys.argv[index + 1])
                 except IndexError:
                     print("Invalid custom chunk size. Using default.")
+            elif arg in ["-t", "--timeout"]:
+                try:
+                    custom_timeout = int(sys.argv[index + 1])
+                except IndexError:
+                    print("Invalid timeout. Using default.")
 
         if sys.argv[1] in ["-h", "--help"]:
             display_help()
         elif sys.argv[1] in ["-v", "--version"]:
             display_version()
         else:
-            download_file(sys.argv[url_index], custom_chunk_size, custom_download_dir)
+            download_file(sys.argv[url_index], custom_chunk_size, custom_download_dir, custom_timeout)
 
