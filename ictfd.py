@@ -4,7 +4,7 @@ import requests
 from urllib.parse import urlparse
 from datetime import datetime
 
-DOWNLOADS_FOLDER = os.path.join(str(os.path.expanduser("~")), "downloads")
+DOWNLOADS_FOLDER = os.path.join(str(os.path.expanduser("~")), "Downloads")
 DEFAULT_CHUNK_SIZE = 8192
 VERSION = "1.9"
 GITHUB_API_URL = "https://api.github.com/repos/IgorCielniak/ictfd/releases/latest"
