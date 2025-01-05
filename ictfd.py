@@ -11,16 +11,16 @@ GITHUB_API_URL = "https://api.github.com/repos/IgorCielniak/ictfd/releases/lates
 LATEST_VERSION = requests.get(GITHUB_API_URL).json()["tag_name"]
 GITHUB_RELEASE_URL = f"https://raw.githubusercontent.com/IgorCielniak/ictfd/{LATEST_VERSION}/ictfd.py"
 
-def create_downloads_folder():
-    if not os.path.exists(DOWNLOADS_FOLDER):
-        os.makedirs(DOWNLOADS_FOLDER)
+def create_downloads_folder(folder_path):
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-def download_http_file(url, chunk_size=DEFAULT_CHUNK_SIZE):
+def download_http_file(url, download_dir, chunk_size=DEFAULT_CHUNK_SIZE):
     response = requests.get(url, stream=True)
     response.raise_for_status()
 
     total_size = int(response.headers.get('content-length', 0))
-    file_name = os.path.join(DOWNLOADS_FOLDER, url.split("/")[-1])
+    file_name = os.path.join(download_dir, url.split("/")[-1])
 
     print(f"{url}")
     print(f"Resolving {parsed_url.netloc} ({parsed_url.netloc})... connected.")
@@ -70,12 +70,13 @@ def prompt_user_overwrite(file_path):
 
 def display_help():
     print("Usage:")
-    print("  python ictfd.py [URL] [-c CHUNK_SIZE] [-h] [-v]")
+    print("  python ictfd.py [URL] [-c CHUNK_SIZE] [-d DOWNLOAD_DIR] [-h] [-v]")
     print("\nOptions:")
     print("  URL                  The URL of the file to download.")
-    print("  -c, --chunk-size    Custom chunk size for downloading.")
-    print("  -h, --help          Display this help message.")
-    print("  -v, --version       Display the version and check for updates.")
+    print("  -c, --chunk-size     Custom chunk size for downloading.")
+    print("  -d, --download-dir   Custom directory for downloaded files.")
+    print("  -h, --help           Display this help message.")
+    print("  -v, --version        Display the version and check for updates.")
 
 def display_version():
     print(f"ICTFD Version {VERSION}")
@@ -104,17 +105,22 @@ def format_time(seconds):
     hours, minutes = divmod(minutes, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
-def download_file(url, custom_chunk_size=None):
+def download_file(url, custom_chunk_size=None, custom_download_dir=None):
     try:
         global parsed_url
         parsed_url = urlparse(url)
         scheme = parsed_url.scheme.lower()
 
-        create_downloads_folder()
+        if custom_download_dir:
+            download_dir = custom_download_dir
+        else:
+            download_dir = DOWNLOADS_FOLDER
+
+        create_downloads_folder(download_dir)
 
         if scheme in ["http", "https"]:
             chunk_size = custom_chunk_size if custom_chunk_size is not None else DEFAULT_CHUNK_SIZE
-            download_http_file(url, chunk_size)
+            download_http_file(url, download_dir, chunk_size)
         else:
             print(f"Unsupported scheme: {scheme}. Cannot download the file.")
     except Exception as e:
@@ -127,7 +133,8 @@ def interactive_mode():
     print("1. Enter the number of files you want to download.")
     print("2. For each file, enter the URL of the file.")
     print("3. Optionally, specify a custom chunk size for downloading.")
-    print("4. Press Enter after each URL to proceed to the next file.\n")
+    print("4. Optionally, specify a custom download directory.")
+    print("5. Press Enter after each URL to proceed to the next file.\n")
 
     try:
         num_files = int(input("Enter the number of files to download: "))
@@ -147,7 +154,8 @@ def interactive_mode():
             except ValueError:
                 print("Invalid chunk size. Using default.")
 
-        download_file(url, custom_chunk_size)
+        custom_download_dir = input("Enter custom download directory (press Enter to use default): ")
+        download_file(url, custom_chunk_size, custom_download_dir)
 
     input("\nPress Enter to exit.")
 
@@ -155,25 +163,26 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         interactive_mode()
     else:
+        custom_download_dir = None
+        custom_chunk_size = None
+        url_index = 1
+
+        for index, arg in enumerate(sys.argv[1:], start=1):
+            if arg in ["-d", "--download-dir"]:
+                try:
+                    custom_download_dir = sys.argv[index + 1]
+                except IndexError:
+                    print("Invalid custom download directory. Using default.")
+            elif arg in ["-c", "--chunk-size"]:
+                try:
+                    custom_chunk_size = int(sys.argv[index + 1])
+                except IndexError:
+                    print("Invalid custom chunk size. Using default.")
+
         if sys.argv[1] in ["-h", "--help"]:
             display_help()
         elif sys.argv[1] in ["-v", "--version"]:
             display_version()
         else:
-            url_index = 1
-            custom_chunk_size = None
+            download_file(sys.argv[url_index], custom_chunk_size, custom_download_dir)
 
-            if sys.argv[1].startswith("-"):
-                url_index = None
-
-            for index, arg in enumerate(sys.argv[1:], start=1):
-                if arg == "-c" or arg == "--chunk-size":
-                    try:
-                        custom_chunk_size = int(sys.argv[index + 1])
-                    except IndexError:
-                        print("Invalid custom chunk size. Using default chunk size.")
-
-            if url_index is not None:
-                download_file(sys.argv[url_index], custom_chunk_size)
-            else:
-                print("Invalid command. Use -h or --help option to see usage instructions.")
