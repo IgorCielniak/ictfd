@@ -150,6 +150,10 @@ if __name__ == "__main__":
     custom_timeout = None
     custom_retries = None
     url_index = 1
+    
+    if len(sys.argv) < 2:
+        print("Not enough arguments")
+        sys.exit()
 
     for index, arg in enumerate(sys.argv[1:], start=1):
         if arg in ["-d", "--download-dir"]:
