@@ -116,7 +116,7 @@ def display_version():
                 print(f"\nA newer version ({latest_version}) is available. You can download it from: {GITHUB_RELEASE_URL}")
                 user_input = input("Do you want to download the newer version? (y/n): ").lower()
                 if user_input == 'y':
-                    download_file(GITHUB_RELEASE_URL, download_dir = os.path.dirname(os.path.abspath(__file__)))
+                    download_file(GITHUB_RELEASE_URL, custom_download_dir = os.path.dirname(os.path.abspath(__file__)))
         except Exception as e:
             print("Failed to check for updates:", e)
 
