@@ -56,12 +56,16 @@ def download_http_file(url, download_dir, chunk_size=DEFAULT_CHUNK_SIZE, timeout
 
                         elapsed_time = (datetime.now() - start_time).total_seconds()
                         download_speed = downloaded_size / elapsed_time
-                        percentage = (downloaded_size / total_size) * 100
-                        estimated_time = (total_size - downloaded_size) / download_speed if download_speed > 0 else 0
+                        if total_size > 0:
+                            percentage = (downloaded_size / total_size) * 100
+                            estimated_time = (total_size - downloaded_size) / download_speed if download_speed > 0 else 0
+                            print(f"\rDownload Speed: {format_bytes(download_speed)}/s | "
+                                  f"Progress: {percentage:.2f}% | "
+                                  f"Estimated Time: {estimated_time:.0f} seconds", end="", flush=True)
+                        else:
+                            print(f"\rDownload Speed: {format_bytes(download_speed)}/s | "
+                                  f"Downloaded: {format_bytes(downloaded_size)}", end="", flush=True)
 
-                        print(f"\rDownload Speed: {format_bytes(download_speed)}/s | "
-                              f"Progress: {percentage:.2f}% | "
-                              f"Estimated Time: {estimated_time:.0f} seconds", end="", flush=True)
             break
         except requests.exceptions.RequestException as e:
             print(f"Error downloading file (attempt {attempt + 1}): {e}")
