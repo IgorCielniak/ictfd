@@ -7,7 +7,7 @@ import requests
 from urllib.parse import urlparse
 from datetime import datetime
 
-VERSION = "1.9"
+VERSION = "2.0"
 GITHUB_API_URL = "https://api.github.com/repos/IgorCielniak/ictfd/releases/latest"
 GITHUB_RELEASE_URL = f"https://raw.githubusercontent.com/IgorCielniak/ictfd/main/ictfd.py"
 
@@ -145,7 +145,7 @@ def check_for_updates():
 def main():
     config = load_config()
 
-    parser = argparse.ArgumentParser(description="ICTFD - Command-line file downloader")
+    parser = argparse.ArgumentParser(description="ICTFD - CLI file downloader")
     parser.add_argument("url", nargs="?", help="The URL of the file to download.")
     parser.add_argument("-c", "--chunk-size", type=int, default=int(config["defaults"].get("chunk_size", DEFAULT_CONFIG["chunk_size"])))
     parser.add_argument("-d", "--download-dir", default=os.path.expanduser(config["defaults"].get("download_dir", DEFAULT_CONFIG["download_dir"])))
